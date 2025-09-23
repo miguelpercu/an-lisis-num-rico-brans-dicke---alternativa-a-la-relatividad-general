@@ -1,0 +1,100 @@
+=== COSMOLOGICAL ANALYSIS: Brans-Dicke vs ΛCDM ===
+Creating organized file structure...
+✓ Created directory: results/figures
+✓ Created directory: results/tables
+✓ Created directory: results/data_curves
+✓ Created directory: results/data_observations
+✓ Created directory: results/statistical_analysis
+
+=== COSMOLOGICAL PARAMETERS ===
+H0: 70.0
+Omega_m0: 0.3
+Omega_DE0: 0.7
+w0: -1.0
+
+=== GENERATING SIMULATED DATA ===
+Generated 29 data points
+Redshift range: z = 0.01 to 1.60
+Typical error: 0.106 mag
+
+======================================================================
+STARTING MAIN ANALYSIS
+======================================================================
+======================================================================
+BRANS-DICKE COSMOLOGICAL ANALYSIS PIPELINE
+Author: Miguel Ángel Percudani
+======================================================================
+
+=== STATISTICAL ANALYSIS ===
+ΛCDM: χ² = 24.47, χ²_reduced = 0.874
+
+Brans-Dicke results:
+--------------------------------------------------
+ω =    10: χ² =  24.53, χ²_reduced = 0.876
+ω =    50: χ² =  24.53, χ²_reduced = 0.876
+ω =   100: χ² =  24.53, χ²_reduced = 0.876
+ω =   500: χ² =  24.53, χ²_reduced = 0.876
+ω =  1000: χ² =  24.53, χ²_reduced = 0.876
+ω =  2000: χ² =  24.53, χ²_reduced = 0.876
+ω =  5000: χ² =  24.53, χ²_reduced = 0.876
+ω = 10000: χ² =  24.53, χ²_reduced = 0.876
+
+==================================================
+BEST FIT: ω = 10
+Δχ² (BD - ΛCDM) = 0.064
+==================================================
+
+=== GENERATING ANALYSIS PLOTS ===
+
+✓ All plots generated and saved
+
+=== EXPORTING DATA ===
+✓ Cosmological parameters saved
+✓ Observational data saved
+✓ Theoretical curves saved
+✓ Statistical results saved
+✓ Best fit summary saved
+
+======================================================================
+ANALYSIS COMPLETED SUCCESSFULLY
+======================================================================
+Generated files:
+📊 results/figures/comprehensive_analysis.png/.pdf
+📁 results/tables/cosmological_parameters.csv
+📁 results/data_observations/observational_data.csv
+📁 results/data_curves/theoretical_curves.csv
+📁 results/statistical_analysis/statistical_results.csv
+📁 results/statistical_analysis/best_fit_summary.csv
+📈 Final Statistical Results
+Model	ω	χ²	χ²_reduced	Status
+ΛCDM	-	24.47	0.874	Reference Model
+Brans-Dicke	10	24.53	0.876	🌟 Best fit
+Brans-Dicke	50	24.53	0.876	Valid
+Brans-Dicke	100	24.53	0.876	Valid
+Brans-Dicke	500	24.53	0.876	Valid
+Brans-Dicke	1000	24.53	0.876	Valid
+Brans-Dicke	2000	24.53	0.876	Valid
+Brans-Dicke	5000	24.53	0.876	Valid
+Brans-Dicke	10000	24.53	0.876	Valid
+🎯 Conclusion
+Brans-Dicke theory with ω = 10 is statistically indistinguishable from ΛCDM
+
+Δχ² = 0.064 (difference is not statistically significant)
+
+Both models provide excellent fits to the simulated supernova data
+
+
+======================================================================
+NOTE: All files are saved in the 'results' directory
+You can access them easily from the Jupyter notebook file browser
+======================================================================
+
+📁 PROJECT FILE STRUCTURE:
+percudani_brans_dicke_cosmology.ipynb  ← Main analysis notebook
+results/
+├── figures/                           ← All generated plots
+├── tables/                            ← Parameter tables
+├── data_observations/                 ← Simulated observational data
+├── data_curves/                       ← Theoretical curves
+└── statistical_analysis/              ← Statistical results
+======================================================================

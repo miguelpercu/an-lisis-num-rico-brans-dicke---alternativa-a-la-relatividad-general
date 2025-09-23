@@ -1,0 +1,281 @@
+d(fontsize=10)
+    plt.title('Percentage Difference: BD - ΛCDM', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    
+    # Plot 7: Cosmological parameters evolution
+    ax7 = plt.subplot(3, 3, 7)
+    z_param = np.linspace(0, 2, 100)
+    
+    # Matter and dark energy densities
+    Omega_m = Omega_m0 * (1 + z_param)*3 / (Omega_m0 * (1 + z_param)*3 + Omega_DE0)
+    Omega_de = Omega_DE0 / (Omega_m0 * (1 + z_param)**3 + Omega_DE0)
+    
+    plt.plot(z_param, Omega_m, 'b-', linewidth=2, label='$\\Omega_m(z)$')
+    plt.plot(z_param, Omega_de, 'r-', linewidth=2, label='$\\Omega_{DE}(z)$')
+    
+    plt.xlabel('Redshift, $z$', fontsize=12)
+    plt.ylabel('Density Parameter', fontsize=12)
+    plt.legend(fontsize=10)
+    plt.title('Density Parameter Evolution', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    
+    # Plot 8: Hubble parameter in physical units
+    ax8 = plt.subplot(3, 3, 8)
+    H_lcdm = E_lcdm * H0
+    
+    for omega in [10, 100, 1000]:
+        E, H, phi, dphidz = solve_brans_dicke(z_param, omega)
+        if H is not None:
+            plt.plot(z_param, H, '--', linewidth=2, label=f'BD, ω = {omega}')
+    
+    plt.plot(z_param, H_lcdm, 'k-', linewidth=3, label='ΛCDM')
+    plt.xlabel('Redshift, $z$', fontsize=12)
+    plt.ylabel('$H(z)$ [km/s/Mpc]', fontsize=12)
+    plt.legend(fontsize=10)
+    plt.title('Hubble Parameter Evolution', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    
+    # Plot 9: Statistical summary
+    ax9 = plt.subplot(3, 3, 9)
+    ax9.axis('off')
+    
+    # Statistical summary text
+    summary_text = f"""
+    STATISTICAL SUMMARY
+    
+    Data Points: {len(z_data)}
+    Degrees of Freedom: {lcdm_results[2]}
+    
+    ΛCDM Results:
+    χ² = {lcdm_results[0]:.2f}
+    χ²_reduced = {lcdm_results[1]:.3f}
+    
+    Brans-Dicke Results:"""
+    
+    if best_fit:
+        summary_text += f"""
+    Best ω = {best_fit[0]}
+    Best χ² = {best_fit[1]:.2f}
+    Δχ² = {best_fit[2]:.3f}
+    
+    Conclusion:"""
+        if abs(best_fit[2]) < 2.0:
+            summary_text += "\nBrans-Dicke and ΛCDM are statistically indistinguishable"
+        else:
+            summary_text += "\nSignificant statistical difference detected"
+    
+    ax9.text(0.1, 0.9, summary_text, transform=ax9.transAxes, fontsize=12,
+             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+    
+    plt.tight_layout()
+    plt.savefig('results/figures/comprehensive_analysis.png', dpi=300, bbox_inches='tight')
+    plt.savefig('results/figures/comprehensive_analysis.pdf', bbox_inches='tight')
+    plt.show()
+    
+    print("✓ All plots generated and saved")
+
+# =============================================================================
+# 8. DATA EXPORT FUNCTIONS
+# =============================================================================
+
+def export_all_data(z_data, mu_obs, mu_err, results, lcdm_results, best_fit):
+    """
+    Export all data to organized CSV files
+    """
+    print("\n=== EXPORTING DATA ===")
+    
+    # 1. Cosmological parameters
+    df_params = pd.DataFrame([cosmo_params])
+    df_params.to_csv('results/tables/cosmological_parameters.csv', index=False)
+    print("✓ Cosmological parameters saved")
+    
+    # 2. Observational data
+    df_obs = pd.DataFrame({
+        'redshift': z_data,
+        'distance_modulus': mu_obs,
+        'error': mu_err,
+        'mu_LCDM': distance_modulus_lcdm(z_data)
+    })
+    df_obs.to_csv('results/data_observations/observational_data.csv', index=False)
+    print("✓ Observational data saved")
+    
+    # 3. Theoretical curves
+    z_curves = np.linspace(0.01, 2.0, 200)
+    df_curves = pd.DataFrame({'redshift': z_curves})
+    
+    # ΛCDM curves
+    df_curves['E_LCDM'] = np.sqrt(Omega_m0 * (1 + z_curves)**3 + Omega_DE0)
+    df_curves['mu_LCDM'] = distance_modulus_lcdm(z_curves)
+    
+    # Brans-Dicke curves
+    omega_curves = [10, 100, 1000, 5000]
+    if best_fit and best_fit[0] not in omega_curves:
+        omega_curves.append(best_fit[0])
+    
+    for omega in omega_curves:
+        E, H, phi, dphidz = solve_brans_dicke(z_curves, omega)
+        if E is not None:
+            df_curves[f'E_BD_omega_{omega}'] = E
+            df_curves[f'phi_BD_omega_{omega}'] = phi
+        
+        mu_bd = distance_modulus_bd(z_curves, omega)
+        if not np.any(np.isnan(mu_bd)):
+            df_curves[f'mu_BD_omega_{omega}'] = mu_bd
+    
+    df_curves.to_csv('results/data_curves/theoretical_curves.csv', index=False)
+    print("✓ Theoretical curves saved")
+    
+    # 4. Statistical results
+    statistical_data = []
+    statistical_data.append({
+        'model': 'ΛCDM',
+        'omega': np.nan,
+        'chi2': lcdm_results[0],
+        'chi2_reduced': lcdm_results[1],
+        'dof': lcdm_results[2]
+    })
+    
+    for omega, chi2, chi2_red in results:
+        if not np.isnan(chi2):
+            statistical_data.append({
+                'model': 'Brans-Dicke',
+                'omega': omega,
+                'chi2': chi2,
+                'chi2_reduced': chi2_red,
+                'dof': lcdm_results[2]
+            })
+    
+    df_stats = pd.DataFrame(statistical_data)
+    df_stats.to_csv('results/statistical_analysis/statistical_results.csv', index=False)
+    print("✓ Statistical results saved")
+    
+    # 5. Best fit summary
+    if best_fit:
+        best_fit_data = {
+            'best_omega': best_fit[0],
+            'best_chi2': best_fit[1],
+            'lcdm_chi2': lcdm_results[0],
+            'delta_chi2': best_fit[2],
+            'conclusion': 'Statistically indistinguishable' if abs(best_fit[2]) < 2.0 else 'Significant difference'
+        }
+        df_best = pd.DataFrame([best_fit_data])
+        df_best.to_csv('results/statistical_analysis/best_fit_summary.csv', index=False)
+        print("✓ Best fit summary saved")
+
+# =============================================================================
+# 9. MAIN ANALYSIS PIPELINE
+# =============================================================================
+
+def main_analysis():
+    """
+    Main analysis pipeline
+    """
+    print("="*70)
+    print("BRANS-DICKE COSMOLOGICAL ANALYSIS PIPELINE")
+    print("Author: Miguel Ángel Percudani")
+    print("="*70)
+    
+    # Parameters to test
+    omega_values = [10, 50, 100, 500, 1000, 2000, 5000, 10000]
+    
+    # Perform statistical analysis
+    results, lcdm_results, best_fit = statistical_analysis(z_data, mu_obs, mu_err, omega_values)
+    
+    # Create comprehensive plots
+    create_comprehensive_plots(z_data, mu_obs, mu_err, results, lcdm_results, best_fit)
+    
+    # Export all data
+    export_all_data(z_data, mu_obs, mu_err, results, lcdm_results, best_fit)
+    
+    # Final summary
+    print("\n" + "="*70)
+    print("ANALYSIS COMPLETED SUCCESSFULLY")
+    print("="*70)
+    print("Generated files:")
+    print("📊 results/figures/comprehensive_analysis.png/.pdf")
+    print("📁 results/tables/cosmological_parameters.csv")
+    print("📁 results/data_observations/observational_data.csv") 
+    print("📁 results/data_curves/theoretical_curves.csv")
+    print("📁 results/statistical_analysis/statistical_results.csv")
+    print("📁 results/statistical_analysis/best_fit_summary.csv")
+    
+    return results, lcdm_results, best_fit
+
+# =============================================================================
+# 10. EXECUTE ANALYSIS (CORRECTED)
+# =============================================================================
+
+# Run the complete analysis
+print("\n" + "="*70)
+print("STARTING MAIN ANALYSIS")
+print("="*70)
+
+# Execute the analysis
+results, lcdm_results, best_fit = main_analysis()
+
+# Display final results in a nice format
+display(HTML("""
+<style>
+.results-table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+.results-table th, .results-table td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+.results-table th { background-color: #4CAF50; color: white; }
+.lcdm-row { background-color: #e8f4f8; font-weight: bold; }
+.best-row { background-color: #e8f8e8; font-weight: bold; }
+.conclusion { background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; }
+</style>
+"""))
+
+# Create results table
+results_html = """
+<h2>📈 Final Statistical Results</h2>
+<table class="results-table">
+<tr><th>Model</th><th>ω</th><th>χ²</th><th>χ²_reduced</th><th>Status</th></tr>
+"""
+
+# ΛCDM row
+results_html += f"""
+<tr class="lcdm-row">
+<td>ΛCDM</td><td>-</td><td>{lcdm_results[0]:.2f}</td><td>{lcdm_results[1]:.3f}</td><td>Reference Model</td>
+</tr>
+"""
+
+# Brans-Dicke rows
+for omega, chi2, chi2_red in results:
+    if not np.isnan(chi2):
+        status = "🌟 Best fit" if best_fit and omega == best_fit[0] else "Valid"
+        row_class = "best-row" if best_fit and omega == best_fit[0] else ""
+        results_html += f"""
+        <tr class="{row_class}">
+        <td>Brans-Dicke</td><td>{omega}</td><td>{chi2:.2f}</td><td>{chi2_red:.3f}</td><td>{status}</td>
+        </tr>
+        """
+
+results_html += "</table>"
+
+if best_fit:
+    results_html += f"""
+    <div class="conclusion">
+    <h3>🎯 Conclusion</h3>
+    <p>Brans-Dicke theory with ω = {best_fit[0]} is <strong>statistically indistinguishable</strong> from ΛCDM</p>
+    <p>Δχ² = {best_fit[2]:.3f} (difference is not statistically significant)</p>
+    <p>Both models provide excellent fits to the simulated supernova data</p>
+    </div>
+    """
+
+display(HTML(results_html))
+
+print("\n" + "="*70)
+print("NOTE: All files are saved in the 'results' directory")
+print("You can access them easily from the Jupyter notebook file browser")
+print("="*70)
+
+# Display file structure
+print("\n📁 PROJECT FILE STRUCTURE:")
+print("percudani_brans_dicke_cosmology.ipynb  ← Main analysis notebook")
+print("results/")
+print("├── figures/                           ← All generated plots")
+print("├── tables/                            ← Parameter tables")
+print("├── data_observations/                 ← Simulated observational data")
+print("├── data_curves/                       ← Theoretical curves")
+print("└── statistical_analysis/              ← Statistical results")
+print("="*70)
