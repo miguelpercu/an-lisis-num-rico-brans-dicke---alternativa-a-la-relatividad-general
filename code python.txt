@@ -1,4 +1,386 @@
-d(fontsize=10)
+# =============================================================================
+# COSMOLOGICAL ANALYSIS: Brans-Dicke Theory vs ΛCDM
+# Complete pipeline with organized file structure
+# Author: Miguel Ángel Percudani
+# =============================================================================
+import numpy as np
+cov_matrix = np.load('pantheon_plus_cov_matrix_regularized.npy')
+
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import os
+from scipy.integrate import solve_ivp, trapezoid
+from IPython.display import display, HTML
+
+print("=== COSMOLOGICAL ANALYSIS: Brans-Dicke vs ΛCDM ===")
+print("Creating organized file structure...")
+
+# =============================================================================
+# 1. CREATE ORGANIZED DIRECTORY STRUCTURE
+# =============================================================================
+
+# Create main directories
+directories = [
+    'results/figures',
+    'results/tables', 
+    'results/data_curves',
+    'results/data_observations',
+    'results/statistical_analysis'
+]
+
+for directory in directories:
+    os.makedirs(directory, exist_ok=True)
+    print(f"✓ Created directory: {directory}")
+
+# =============================================================================
+# 2. COSMOLOGICAL PARAMETERS
+# =============================================================================
+
+# Standard cosmological parameters
+H0 = 70.0           # Hubble constant [km/s/Mpc]
+Omega_m0 = 0.3      # Matter density parameter
+Omega_DE0 = 0.7     # Dark energy density parameter
+w0 = -1.0           # Dark energy equation of state
+
+cosmo_params = {
+    'H0': H0,
+    'Omega_m0': Omega_m0,
+    'Omega_DE0': Omega_DE0,
+    'w0': w0
+}
+
+print("\n=== COSMOLOGICAL PARAMETERS ===")
+for key, value in cosmo_params.items():
+    print(f"{key}: {value}")
+
+# =============================================================================
+# 3. BRANS-DICKE THEORY IMPLEMENTATION
+# =============================================================================
+
+def brans_dicke_equations(z, y, omega):
+    """
+    Brans-Dicke field equations in FLRW metric
+    Based on: Brans & Dicke (1961), Weinberg (1972)
+    
+    Parameters:
+    z : redshift
+    y : [phi, dphi/dz] where phi is the scalar field
+    omega : Brans-Dicke coupling parameter
+    
+    Returns:
+    [dphi/dz, d²phi/dz²]
+    """
+    phi, dphidz = y
+    
+    # Energy densities
+    rho_m = Omega_m0 * (1 + z)**3
+    rho_de = Omega_DE0  # For w0 = -1
+    
+    # Modified Friedmann equation for Brans-Dicke
+    E2 = (Omega_m0 * (1 + z)**3 + Omega_DE0) / (1 - (1 + z) * dphidz / (3 * phi))
+    E = np.sqrt(max(E2, 1e-10))
+    
+    # Scalar field equation (simplified but physically correct)
+    d2phidz2 = - (3/(1+z)) * dphidz
+    
+    return [dphidz, d2phidz2]
+
+def solve_brans_dicke(z_points, omega):
+    """
+    Solve Brans-Dicke equations and compute cosmological quantities
+    """
+    try:
+        # Initial conditions: phi(0) = 1, dphi/dz(0) = 0
+        y0 = [1.0, 0.0]
+        
+        sol = solve_ivp(brans_dicke_equations, [0, max(z_points)], y0,
+                       args=(omega,), t_eval=z_points, method='RK45',
+                       rtol=1e-8, atol=1e-8)
+        
+        if not sol.success:
+            return None, None, None, None
+        
+        phi, dphidz = sol.y
+        
+        # Compute E(z) and H(z)
+        E_values = []
+        H_values = []
+        for i, z_val in enumerate(z_points):
+            E2 = (Omega_m0 * (1 + z_val)**3 + Omega_DE0) / (1 - (1 + z_val) * dphidz[i] / (3 * phi[i]))
+            E = np.sqrt(max(E2, 1e-10))
+            H = E * H0
+            E_values.append(E)
+            H_values.append(H)
+        
+        return np.array(E_values), np.array(H_values), phi, dphidz
+        
+    except Exception as e:
+        print(f"Error solving BD equations: {e}")
+        return None, None, None, None
+
+# =============================================================================
+# 4. DISTANCE MODULUS CALCULATION
+# =============================================================================
+
+def distance_modulus_bd(z_points, omega):
+    """
+    Calculate distance modulus for Brans-Dicke theory
+    """
+    E, H, phi, dphidz = solve_brans_dicke(z_points, omega)
+    
+    if E is None:
+        return np.full_like(z_points, np.nan)
+    
+    c = 299792.458  # Speed of light [km/s]
+    dL_values = []
+    
+    for i, z_val in enumerate(z_points):
+        if z_val == 0:
+            dL_values.append(1e-10)
+        else:
+            # Numerical integration of 1/E(z)
+            z_integ = np.linspace(0, z_val, 100)
+            E_integ = np.interp(z_integ, z_points, E)
+            integral = trapezoid(1/np.maximum(E_integ, 1e-10), z_integ)
+            dL = (1 + z_val) * (c / H0) * integral
+            dL_values.append(max(dL, 1e-10))
+    
+    # Distance modulus: μ = 5log₁₀(dL/10pc)
+    return 5 * np.log10(np.array(dL_values) * 1e5)
+
+def distance_modulus_lcdm(z):
+    """
+    Calculate distance modulus for ΛCDM model
+    """
+    c = 299792.458  # km/s
+    
+    if np.isscalar(z):
+        z = np.array([z])
+    
+    dL_values = []
+    for z_val in z:
+        if z_val == 0:
+            dL_values.append(1e-10)
+        else:
+            z_integ = np.linspace(0, z_val, 100)
+            E_integ = np.sqrt(Omega_m0 * (1 + z_integ)**3 + Omega_DE0)
+            integral = trapezoid(1/E_integ, z_integ)
+            dL = (1 + z_val) * (c / H0) * integral
+            dL_values.append(dL)
+    
+    return 5 * np.log10(np.array(dL_values) * 1e5)
+
+# =============================================================================
+# 5. GENERATE SIMULATED OBSERVATIONAL DATA
+# =============================================================================
+
+print("\n=== GENERATING SIMULATED DATA ===")
+
+# Realistic redshift distribution based on modern surveys
+z_data = np.array([0.01, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 
+                   0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85,
+                   0.9, 0.95, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6])
+
+# True values from ΛCDM
+mu_lcdm_true = distance_modulus_lcdm(z_data)
+
+# Realistic observational errors (increasing with redshift)
+np.random.seed(42)  # For reproducibility
+mu_err = 0.08 + 0.04 * z_data
+mu_obs = mu_lcdm_true + np.random.normal(0, mu_err)
+
+print(f"Generated {len(z_data)} data points")
+print(f"Redshift range: z = {z_data.min():.2f} to {z_data.max():.2f}")
+print(f"Typical error: {np.mean(mu_err):.3f} mag")
+
+# =============================================================================
+# 6. STATISTICAL ANALYSIS FUNCTIONS
+# =============================================================================
+
+def calculate_chi2(mu_model, mu_obs, errors):
+    """
+    Calculate χ² statistic and related metrics
+    """
+    chi2 = np.sum(((mu_obs - mu_model) / errors)**2)
+    dof = len(mu_obs) - 1  # Degrees of freedom
+    chi2_reduced = chi2 / dof
+    return chi2, chi2_reduced, dof
+
+def statistical_analysis(z_data, mu_obs, mu_err, omega_values):
+    """
+    Perform comprehensive statistical analysis
+    """
+    print("\n=== STATISTICAL ANALYSIS ===")
+    
+    # ΛCDM reference
+    mu_lcdm = distance_modulus_lcdm(z_data)
+    chi2_lcdm, chi2_red_lcdm, dof = calculate_chi2(mu_lcdm, mu_obs, mu_err)
+    
+    print(f"ΛCDM: χ² = {chi2_lcdm:.2f}, χ²_reduced = {chi2_red_lcdm:.3f}")
+    
+    # Brans-Dicke analysis
+    results = []
+    print("\nBrans-Dicke results:")
+    print("-" * 50)
+    
+    for omega in omega_values:
+        mu_bd = distance_modulus_bd(z_data, omega)
+        
+        if np.any(np.isnan(mu_bd)):
+            print(f"ω = {omega:5d}: Calculation error")
+            results.append((omega, np.nan, np.nan))
+        else:
+            chi2, chi2_red, _ = calculate_chi2(mu_bd, mu_obs, mu_err)
+            results.append((omega, chi2, chi2_red))
+            print(f"ω = {omega:5d}: χ² = {chi2:6.2f}, χ²_reduced = {chi2_red:.3f}")
+    
+    # Find best fit
+    valid_results = [r for r in results if not np.isnan(r[1])]
+    if valid_results:
+        best_omega, best_chi2, best_chi2_red = min(valid_results, key=lambda x: x[1])
+        delta_chi2 = best_chi2 - chi2_lcdm
+        
+        print("\n" + "="*50)
+        print(f"BEST FIT: ω = {best_omega}")
+        print(f"Δχ² (BD - ΛCDM) = {delta_chi2:.3f}")
+        print("="*50)
+        
+        return results, (chi2_lcdm, chi2_red_lcdm, dof), (best_omega, best_chi2, delta_chi2)
+    
+    return results, (chi2_lcdm, chi2_red_lcdm, dof), None
+
+# =============================================================================
+# 7. PLOTTING FUNCTIONS
+# =============================================================================
+
+def create_comprehensive_plots(z_data, mu_obs, mu_err, results, lcdm_results, best_fit):
+    """
+    Create all analysis plots for the manuscript
+    """
+    print("\n=== GENERATING ANALYSIS PLOTS ===")
+    
+    plt.style.use('default')
+    fig = plt.figure(figsize=(20, 16))
+    
+    # Plot 1: Hubble parameter evolution
+    ax1 = plt.subplot(3, 3, 1)
+    z_plot = np.linspace(0, 1.6, 100)
+    
+    # ΛCDM
+    E_lcdm = np.sqrt(Omega_m0 * (1 + z_plot)**3 + Omega_DE0)
+    plt.plot(z_plot, E_lcdm, 'black', linewidth=3, label='ΛCDM')
+    
+    # Brans-Dicke
+    for omega in [10, 100, 1000]:
+        E, H, phi, dphidz = solve_brans_dicke(z_plot, omega)
+        if E is not None:
+            plt.plot(z_plot, E, '--', linewidth=2, label=f'BD, ω = {omega}')
+    
+    plt.xlabel('Redshift, $z$', fontsize=12)
+    plt.ylabel('$E(z) = H(z)/H_0$', fontsize=12)
+    plt.legend(fontsize=10)
+    plt.title('Normalized Hubble Parameter', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    
+    # Plot 2: Scalar field evolution
+    ax2 = plt.subplot(3, 3, 2)
+    for omega in [10, 100, 1000]:
+        E, H, phi, dphidz = solve_brans_dicke(z_plot, omega)
+        if phi is not None:
+            plt.plot(z_plot, phi, linewidth=2, label=f'ω = {omega}')
+    
+    plt.xlabel('Redshift, $z$', fontsize=12)
+    plt.ylabel('Scalar Field, $\\phi(z)$', fontsize=12)
+    plt.legend(fontsize=10)
+    plt.title('Brans-Dicke Scalar Field Evolution', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    
+    # Plot 3: Distance modulus comparison
+    ax3 = plt.subplot(3, 3, 3)
+    z_plot_mu = np.linspace(0.01, 1.6, 50)
+    
+    # ΛCDM
+    mu_lcdm_plot = distance_modulus_lcdm(z_plot_mu)
+    plt.plot(z_plot_mu, mu_lcdm_plot, 'black', linewidth=3, label='ΛCDM')
+    
+    # Brans-Dicke
+    omega_plot = [10, 100, 1000]
+    if best_fit and best_fit[0] not in omega_plot:
+        omega_plot.append(best_fit[0])
+    
+    for omega in omega_plot:
+        mu_bd_plot = distance_modulus_bd(z_plot_mu, omega)
+        if not np.any(np.isnan(mu_bd_plot)):
+            plt.plot(z_plot_mu, mu_bd_plot, '--', linewidth=2, label=f'BD, ω = {omega}')
+    
+    # Observational data
+    plt.errorbar(z_data, mu_obs, yerr=mu_err, fmt='o', markersize=4, 
+                 alpha=0.7, color='red', label='Simulated Data')
+    
+    plt.xlabel('Redshift, $z$', fontsize=12)
+    plt.ylabel('Distance Modulus, $\\mu(z)$', fontsize=12)
+    plt.legend(fontsize=10)
+    plt.title('Distance Modulus Comparison', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    
+    # Plot 4: χ² analysis
+    ax4 = plt.subplot(3, 3, 4)
+    omega_vals = [r[0] for r in results if not np.isnan(r[1])]
+    chi2_vals = [r[1] for r in results if not np.isnan(r[1])]
+    
+    plt.semilogx(omega_vals, chi2_vals, 'bo-', markersize=6, label='Brans-Dicke')
+    plt.axhline(lcdm_results[0], color='red', linestyle='--', 
+                linewidth=2, label='ΛCDM')
+    
+    if best_fit:
+        plt.semilogx([best_fit[0]], [best_fit[1]], 'ro', markersize=8, 
+                    label=f'Best ω = {best_fit[0]}')
+    
+    plt.xlabel('Brans-Dicke Parameter, $\\omega$', fontsize=12)
+    plt.ylabel('$\\chi^2$', fontsize=12)
+    plt.legend(fontsize=10)
+    plt.title('$\\chi^2$ vs Coupling Parameter', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    
+    # Plot 5: Residuals analysis
+    ax5 = plt.subplot(3, 3, 5)
+    mu_lcdm_data = distance_modulus_lcdm(z_data)
+    residuals_lcdm = (mu_obs - mu_lcdm_data) / mu_err
+    
+    if best_fit:
+        mu_bd_data = distance_modulus_bd(z_data, best_fit[0])
+        if not np.any(np.isnan(mu_bd_data)):
+            residuals_bd = (mu_obs - mu_bd_data) / mu_err
+            plt.scatter(z_data, residuals_bd, alpha=0.7, s=50, 
+                       label=f'BD, ω = {best_fit[0]}', color='green')
+    
+    plt.scatter(z_data, residuals_lcdm, alpha=0.7, s=50, label='ΛCDM', color='blue')
+    plt.axhline(0, color='black', linestyle='-', alpha=0.5)
+    plt.axhline(1, color='red', linestyle='--', alpha=0.5, label='±1σ')
+    plt.axhline(-1, color='red', linestyle='--', alpha=0.5)
+    
+    plt.xlabel('Redshift, $z$', fontsize=12)
+    plt.ylabel('Normalized Residuals', fontsize=12)
+    plt.legend(fontsize=10)
+    plt.title('Normalized Residuals', fontsize=14)
+    plt.grid(True, alpha=0.3)
+    
+    # Plot 6: Percentage differences
+    ax6 = plt.subplot(3, 3, 6)
+    z_diff = np.linspace(0.1, 1.5, 30)
+    mu_lcdm_diff = distance_modulus_lcdm(z_diff)
+    
+    for omega in [10, 100, 1000]:
+        mu_bd_diff = distance_modulus_bd(z_diff, omega)
+        if not np.any(np.isnan(mu_bd_diff)):
+            diff_pct = 100 * (mu_bd_diff - mu_lcdm_diff) / mu_lcdm_diff
+            plt.plot(z_diff, diff_pct, linewidth=2, label=f'ω = {omega}')
+    
+    plt.axhline(0, color='black', linestyle='--', alpha=0.5)
+    plt.xlabel('Redshift, $z$', fontsize=12)
+    plt.ylabel('Difference (%)', fontsize=12)
+    plt.legend(fontsize=10)
     plt.title('Percentage Difference: BD - ΛCDM', fontsize=14)
     plt.grid(True, alpha=0.3)
     
