@@ -1,0 +1,45 @@
+Dear community,
+
+I am excited to share a significant update to this repository, which hosts the Python code associated with the manuscript "Brans-Dicke vs. ΛCDM: A Comparative Cosmological Analysis" [previously submitted to a journal]. This version introduces a new implementation and results based on real observational data from the Pantheon Type Ia supernova catalog, complementing the original approach using synthetic simulations. This update is released at 01:19 AM -03 on Thursday, September 25, 2025, reflecting ongoing efforts to enhance and validate the numerical framework presented.
+
+Context and Objective
+This study focuses on a numerical analysis of the Brans-Dicke (BD) cosmological model as an alternative to General Relativity (GR), specifically comparing it to the standard ΛCDM model. The original code, available in this repository, was designed to perform this comparison using synthetic simulations. Initial results indicated that BD and ΛCDM were statistically indistinguishable (Δχ² ≈ 0.064 for ω ≥ 10), as detailed in the manuscript. To strengthen the analysis and align it with real observations, the pipeline has been extended to process the 1048 data points from the Pantheon catalog \cite{Scolnic2018}, which includes redshifts ($0.01 < z < 2.3$), corrected apparent magnitudes ($m_B$) as a proxy for distance modulus μ(z), and associated errors.
+
+Changes and New Results
+The updated code (available in main_analysis.py) includes the following enhancements:
+
+Real Data Loading and Processing: Utilizes pandas to read the lcparam_full_long.txt file from the official Pantheon repository, addressing syntax warnings (e.g., sep=r'\s+') and handling numerical singularities in luminosity distance integration.
+Differential Equation Solving: Refined the BD equation implementation, adjusting the source term in bd_odes and dynamic terms in solve_brans_dicke (e.g., penalizing low ω with factors like 0.1 / (omega + 1)) to better reflect observational constraints.
+Statistical Analysis: Computes the marginalized χ² for ΛCDM and BD across multiple ω values (10, 50, 100, 500, 1000, 2000, 5000, 10000), generating comparative plots and exporting results to CSV files.
+Key Results:
+ΛCDM: χ² = 1037.18, reduced χ² = 0.991.
+BD: χ² ranges from 1558.79 (ω=10) to 1700.17 (ω=10000), with a minimum at ω=10 (Δχ² = 521.611 compared to ΛCDM).
+Conclusion: A significant difference (Δχ² >> 2√dof) rejects BD in favor of ΛCDM with real data, contrasting with the indistinguishability in simulations.
+These findings have been incorporated into a new section of the manuscript titled "Analysis with Real Data," which will be submitted as a revised version or addendum to the journal. The section includes a table with the results (see results/statistical_analysis/statistical_results.csv) and a discussion on the overfit at ω=10, its inconsistency with local constraints (ω > 40,000, Cassini \cite{Will2006}) and cosmological constraints (ω > 692, Planck \cite{Planck2018}), and the need for extensions like G/c co-variants \cite{Medeiros2023, BezerraSobrinho2025}.
+
+Reproduction Instructions
+Clone this repository: git clone https://github.com/miguelpercu/analisis-numerico-brans-dicke---alternativa-a-la-relatividad-general.git.
+Install dependencies: pip install numpy scipy pandas matplotlib.
+Run the main script: python main_analysis.py.
+Results (plots, tables) will be generated in the results/ directory.
+The code produces:
+
+Comparative plots in results/figures/real_analysis.png.
+Exported data in results/tables/, results/data_observations/, results/data_curves/, and results/statistical_analysis/.
+Scientific Relevance
+This update validates the numerical pipeline by applying it to real observational data, revealing a stark contrast with synthetic simulations. The rejection of BD (Δχ² = 521.611) highlights the limitations of the standard model when faced with real-world noise and systematics, suggesting that extensions (e.g., variable G/c) may be necessary to reconcile BD with observations. This work also opens avenues for future studies integrating CMB and BAO data to explore BD's potential in addressing cosmological tensions, such as the H₀ discrepancy \cite{Riess2022}.
+
+Acknowledgments and Collaboration
+I thank the xAI community and Grok for assistance in refining this code. Feedback, contributions, or suggestions for further improvements are welcome! Please open an issue or pull request to collaborate.
+
+License
+This project is released under the MIT License (or specify your preferred license).
+
+References
+\cite{Scolnic2018} Scolnic et al., ApJ, 2018
+\cite{Will2006} Will, Living Rev. Rel., 2006
+\cite{Planck2018} Planck Collaboration, A&A, 2018
+\cite{Riess2022} Riess et al., ApJ, 2022
+\cite{Medeiros2023} Medeiros et al., [cite specific paper]
+\cite{BezerraSobrinho2025} Bezerra-Sobrinho et al., [cite specific paper]
+\cite{Percudani2025} Percudani, [cite your manuscript or this repo]
