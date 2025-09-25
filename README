@@ -37,12 +37,4 @@ I extend my gratitude to the xAI community and Grok for their assistance in refi
 
 License
 This project is released under the MIT License (or specify your preferred license).
-
-References
-\cite{Scolnic2018} Scolnic et al., ApJ, 2018
-\cite{Will2006} Will, Living Rev. Rel., 2006
-\cite{Planck2018} Planck Collaboration, A&A, 2018
-\cite{Riess2022} Riess et al., ApJ, 2022
-\cite{Medeiros2023} Medeiros et al., [cite specific paper]
-\cite{BezerraSobrinho2025} Bezerra-Sobrinho et al., [cite specific paper]
-\cite{Percudani2025} Percudani, [https://github.com/miguelpercu/analisis-numerico-brans-dicke-alternativa-a-la-relatividad-general.]
+This supplementary material contains the Jupyter Notebook Python Pipeline for Real Data Analysis.ipynb, which implements the numerical and statistical analysis of the Brans-Dicke (BD) vs. ΛCDM cosmological models using real data from the Pantheon Type Ia supernova catalog. The code reproduces the results presented in the manuscript "Evolución cosmológica en la teoría de Brans-Dicke: una aproximación numérica y análisis estadístico comparado con ΛCDM"
